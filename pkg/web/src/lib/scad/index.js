@@ -1,37 +1,65 @@
-import { cylinder } from '@jscad/modeling/src/primitives';
-import { booleans, transforms } from '@jscad/modeling';
-import { serialize } from '@jscad/stl-serializer';
-const { subtract: difference, union } = booleans;
+import { cylinder, cylinderElliptic } from '@jscad/modeling/src/primitives';
+import { booleans, transforms, geometries, utils } from '@jscad/modeling';
+// const { serialize } = require('@jscad/scad-api');
+// import { serialize } from '@jscad/stl-serializer';
+import { serialize } from '@jscad/obj-serializer';
+import * as THREE from 'three';
+const { subtract, union } = booleans;
 const { translate, rotate } = transforms;
+const { degToRad } = utils;
+const { geom3 } = geometries;
 // import { difference, union } from '@jscad/modeling/src/booleans';
-const Side_Plate = (thickness, radius) => cylinder(thickness, radius, { center: false });
-
-const Base_Cylinder = (inner_r, outer_r, height) =>
-	difference(
-		cylinder(height, outer_r, { center: false }),
-		translate([0, 0, -1], cylinder(height + 2, inner_r, { center: false }))
+const Side_Plate = (thickness, radius, segments) =>
+	translate(
+		[0, 0, thickness / 2],
+		cylinder({ height: thickness, radius: radius, segments: segments })
 	);
 
-const Note_Pin = (trunk_r, tip_r, height) =>
-	rotate([0, 90, 0], cylinder(height, [trunk_r, tip_r], { center: false }));
+const Base_Cylinder = (inner_r, outer_r, height, segments) =>
+	translate(
+		[0, 0, height / 2],
+		subtract(
+			cylinder({ height: height, radius: outer_r, segments: segments }),
+			translate([0, 0, -1], cylinder({ height: height + 2, radius: inner_r, segments: segments }))
+		)
+	);
+
+const Note_Pin = (trunk_r, tip_r, height, segments) =>
+	rotate(
+		[0, degToRad(90), 0],
+		translate(
+			[0, 0, height / 2],
+			cylinderElliptic({
+				height: height,
+				startRadius: [trunk_r, trunk_r],
+				endRadius: [tip_r, tip_r],
+				segments: segments
+			})
+		)
+	);
+
+// export const normalizeMIDI = (midi) => {
+
+// }
 
 export const Assembly = (config) => {
 	const { side_plate, base_cylinder, note_pin, pin_padding, pin_gap, pin_list } = config;
 
-	const side_plate_obj = Side_Plate(side_plate.thickness, side_plate.radius);
+	const side_plate_obj = Side_Plate(side_plate.thickness, side_plate.radius, config.segments);
 	const base_cylinder_obj = Base_Cylinder(
 		base_cylinder.inner_r,
 		base_cylinder.outer_r,
-		base_cylinder.height
+		base_cylinder.height,
+		config.segments
 	);
 
 	const pins = pin_list.map(([note, angle]) => {
 		const pin_offset = pin_padding + note * pin_gap;
 		return rotate(
-			[0, 0, angle],
+			[0, 0, degToRad(angle)],
 			translate(
 				[base_cylinder.outer_r, 0, pin_offset],
-				Note_Pin(note_pin.trunk_r, note_pin.tip_r, note_pin.height)
+				Note_Pin(note_pin.trunk_r, note_pin.tip_r, note_pin.height, config.segments)
 			)
 		);
 	});
@@ -54,8 +82,9 @@ export const example_config = {
 		tip_r: 0.5,
 		height: 2
 	},
+	segments: 50,
 	pin_padding: 10,
-	pin_gap: 2,
+	pin_gap: 3,
 	pin_list: [
 		[1, 20],
 		[2, 30],
@@ -106,7 +135,32 @@ export const example_config = {
 	]
 };
 
-export const toStl = (scad) => serialize({ binary: 'false' }, scad)[0];
+// export const toStl = (scad) => serialize({ binary: 'false' }, scad)[0];
+export const toObj = (scad) => serialize({}, scad);
+
+export function jscadGeom3ToThreeGeometry(geom) {
+	const geometry = new THREE.BufferGeometry();
+
+	const polygons = geom3.toPolygons(geom);
+	const verticesArray = [];
+	const indicesArray = [];
+
+	polygons.forEach((polygon) => {
+		const vertices = polygon.vertices.map((v) => new THREE.Vector3(v[0], v[1], v[2]));
+		const startIndex = verticesArray.length;
+
+		vertices.forEach((vertex) => verticesArray.push(vertex.x, vertex.y, vertex.z));
+
+		for (let i = 2; i < vertices.length; i++) {
+			indicesArray.push(startIndex, startIndex + i - 1, startIndex + i);
+		}
+	});
+
+	geometry.setAttribute('position', new THREE.BufferAttribute(new Float32Array(verticesArray), 3));
+	geometry.setIndex(indicesArray);
+
+	return geometry;
+}
 
 // const output = Assembly(example_config);
 

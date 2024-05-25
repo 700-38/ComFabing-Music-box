@@ -19,6 +19,8 @@
     "eslint": "^8.56.0",
     "eslint-config-prettier": "^9.1.0",
     "eslint-plugin-svelte": "^2.35.1",
+    "flowbite": "^2.3.0",
+    "flowbite-svelte": "^0.46.1",
     "prettier": "^3.1.1",
     "prettier-plugin-svelte": "^3.1.2",
     "svelte": "^4.2.7",
@@ -30,10 +32,14 @@
   "dependencies": {
     "@jscad/core": "^2.6.8",
     "@jscad/modeling": "^2.12.1",
+    "@jscad/obj-serializer": "^2.1.16",
     "@jscad/openjscad": "^1.6.1",
+    "@jscad/scad-api": "^0.5.1",
     "@jscad/stl-serializer": "^2.1.16",
     "@jscad/web": "^2.6.6",
     "@tonejs/midi": "^2.0.28",
+    "@types/three": "^0.164.1",
+    "flowbite-svelte-icons": "^1.6.1",
     "midi-parser-js": "^4.0.4",
     "scad-js": "^0.5.0",
     "three": "^0.164.1"
